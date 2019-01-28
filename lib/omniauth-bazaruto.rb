@@ -1,4 +1,4 @@
-require "omniauth/bazaruto/version"
+require "omniauth-bazaruto/version"
 require 'omniauth-oauth2'
 
 module OmniAuth
