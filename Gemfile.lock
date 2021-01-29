@@ -34,7 +34,7 @@ GEM
     rack (2.2.3)
     rack-protection (2.1.0)
       rack
-    rake (10.5.0)
+    rake (13.0.3)
     ruby2_keywords (0.0.4)
 
 PLATFORMS
@@ -43,7 +43,7 @@ PLATFORMS
 DEPENDENCIES
   bundler (~> 2.1)
   omniauth-bazaruto!
-  rake (~> 10.0)
+  rake (~> 13.0)
 
 BUNDLED WITH
    2.1.4
