@@ -150,6 +150,34 @@ class StrategyTest < Minitest::Test
     assert_not_requested @token_request
   end
 
+  def test_missing_trusted_consumer_configuration_fails_closed
+    OmniAuth.config.allowed_hosts = nil
+    stub_success
+    token = Rack::Protection::AuthenticityToken.token(@session)
+    response = request('/auth/bazaruto', method: 'POST', params: {authenticity_token: token})
+    assert_equal 'invalid_host', response[2].join
+    assert_not_requested @token_request
+  end
+
+  def test_fixed_consumer_origin_ignores_forged_request_headers
+    OmniAuth.config.allowed_hosts = nil
+    @strategy = strategy(full_host: 'https://consumer.example/')
+    token = Rack::Protection::AuthenticityToken.token(@session)
+    response = request('/auth/bazaruto', method: 'POST', params: {authenticity_token: token},
+      headers: {'HTTP_HOST' => 'untrusted.example', 'HTTP_X_FORWARDED_HOST' => 'untrusted.example'})
+    params = URI.decode_www_form(URI(response[1]['location']).query).to_h
+    assert_equal 'https://consumer.example/auth/bazaruto/callback', params['redirect_uri']
+  end
+
+  def test_fixed_consumer_origin_requires_https_or_explicit_http_loopback
+    ['http://consumer.example', 'https://user:password@consumer.example',
+      'https://consumer.example/path', 'https://consumer.example?query=1', 'https://consumer.example#fragment'].each do |origin|
+      assert_raises(OmniAuth::Strategies::OAuth2::CallbackError) { strategy(full_host: origin).full_host }
+    end
+    local = strategy(full_host: 'http://localhost:3001/', allow_insecure_localhost: true)
+    assert_equal 'http://localhost:3001', local.full_host
+  end
+
   def test_invalid_profile_cannot_reach_the_application
     [nil, [], {}, PROFILE.merge('id' => nil), PROFILE.merge('id' => ''),
       PROFILE.merge('id' => []), PROFILE.merge('organisation_id' => ' '),

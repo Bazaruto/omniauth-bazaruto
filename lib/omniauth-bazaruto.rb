@@ -45,6 +45,24 @@ module OmniAuth
         super
       end
 
+      def full_host
+        origin = super
+        uri = URI.parse(origin.to_s)
+        secure = uri.scheme == 'https' || (options.allow_insecure_localhost && uri.scheme == 'http' && loopback?(uri.hostname))
+        unless secure && uri.host && !uri.userinfo && !uri.query && !uri.fragment && ['', '/'].include?(uri.path)
+          raise CallbackError.new(:invalid_configuration, "Bazaruto requires a trusted consumer origin")
+        end
+        origin.sub(%r{/$}, '')
+      rescue URI::Error
+        raise CallbackError.new(:invalid_configuration, "Bazaruto requires a valid consumer origin")
+      end
+
+      protected
+
+      def allowed_host?
+        (full_host_set? || !OmniAuth.config.allowed_hosts.nil?) && super
+      end
+
       private
 
       def nonempty_string?(value)

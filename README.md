@@ -39,6 +39,9 @@ headers. Alternatively configure `OmniAuth.config.allowed_hosts` with exact
 trusted consumer hosts. Register the exact HTTPS callback URI with the provider
 and preserve trusted proxy/host validation. The library cannot infer an
 application's public hostname or verify a deployed provider registration.
+Authentication fails closed when neither a trusted `full_host` nor an explicit
+`allowed_hosts` list is configured. Fixed origins must use HTTPS, with only
+the explicit local-loopback development exception described below.
 
 Use a POST sign-in form and `omniauth-rails_csrf_protection` for Rails. Keep
 OmniAuth's request validation and OAuth state checks enabled; never add GET to
