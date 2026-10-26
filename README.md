@@ -71,7 +71,10 @@ store the entire auth hash, access tokens or client secrets in session cookies,
 logs or error reports. Authenticate the resulting user through the application's
 session framework and preserve its session-renewal behaviour.
 
-Version 0.2 requires OmniAuth 2.3.1+, omniauth-oauth2 1.10+ and OAuth2 2.1+.
+Version 0.2 requires Ruby 3.0+, OmniAuth 2.3.1+, omniauth-oauth2 1.10+,
+OAuth2 2.1+ and Faraday >= 2.14.3, < 3. The Faraday floor supplies the TLS
+hostname-verification API and includes upstream security fixes; the Ruby floor
+matches that Faraday release.
 This raises the previous dependency floors, adds PKCE and rejects incomplete
 identity responses and insecure transport configuration. Test each consumer's
 role/account-linking and callback behaviour before adopting its new Git ref.
@@ -86,10 +89,13 @@ bundle exec ruby -Ilib test/strategy_test.rb
 ```
 
 All HTTP is stubbed and real network connections are disabled by the tests.
-The CI matrix resolves against Rack 2.2 and 3.2 on Ruby 3.4 and 4.0. To exercise
-a Rack series locally, set `RACK_VERSION='~> 2.2'` (or `~> 3.2`), run
+The CI matrix resolves against Rack 2.2 and 3.2 on Ruby 3.4 and 4.0, using
+both Faraday 2.14.3 and the latest compatible Faraday 2.x. Ruby 3.0 is the
+dependency metadata floor; this matrix does not verify every older Ruby minor.
+To exercise a Rack series locally, set `RACK_VERSION='~> 2.2'` (or `~> 3.2`), run
 `bundle lock --update`, install and run the tests. Restore the normal lock
-afterwards. The lock records the normal development bundle, not every supported
+afterwards. Set `FARADAY_VERSION=2.14.3` to exercise the Faraday floor.
+The lock records the normal development bundle, not every supported
 Ruby/Rack combination. Build a package with `gem build omniauth-bazaruto.gemspec`;
 publishing packages or tags is a separate maintainer action.
 

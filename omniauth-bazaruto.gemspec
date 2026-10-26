@@ -13,7 +13,7 @@ Gem::Specification.new do |spec|
   spec.description   = %q{OmniAuth strategy for Bazaruto}
   spec.homepage      = "https://github.com/Bazaruto/omniauth-bazaruto"
   spec.license       = "MIT"
-  spec.required_ruby_version = ">= 2.5"
+  spec.required_ruby_version = ">= 3.0"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
@@ -27,4 +27,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency "omniauth", "~> 2.3", ">= 2.3.1"
   spec.add_dependency "omniauth-oauth2", "~> 1.10"
   spec.add_dependency "oauth2", ">= 2.1.0", "< 3"
+  spec.add_dependency "faraday", ">= 2.14.3", "< 3"
 end

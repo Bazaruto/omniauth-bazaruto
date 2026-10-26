@@ -16,8 +16,10 @@ jobs:
       matrix:
         ruby: ['3.4', '4.0']
         rack: ['~> 2.2', '~> 3.2']
+        faraday: ['2.14.3', '~> 2.14']
     env:
       RACK_VERSION: ${{ matrix.rack }}
+      FARADAY_VERSION: ${{ matrix.faraday }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
