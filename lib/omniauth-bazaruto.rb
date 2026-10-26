@@ -2,6 +2,7 @@ require "omniauth-bazaruto/version"
 require 'omniauth-oauth2'
 require 'uri'
 require 'ipaddr'
+require 'openssl'
 
 module OmniAuth
   module Strategies
@@ -42,14 +43,22 @@ module OmniAuth
 
       def client
         validate_client_options!
-        super
+        oauth_client = super
+        # Faraday merges process-wide defaults when constructing the connection.
+        # Secure this connection without changing defaults used by other clients.
+        ssl = oauth_client.connection.ssl
+        ssl.verify = true
+        ssl.verify_hostname = true
+        ssl.verify_mode = OpenSSL::SSL::VERIFY_PEER
+        oauth_client
       end
 
       def full_host
         origin = super
         uri = URI.parse(origin.to_s)
         secure = uri.scheme == 'https' || (options.allow_insecure_localhost && uri.scheme == 'http' && loopback?(uri.hostname))
-        unless secure && uri.host && !uri.userinfo && !uri.query && !uri.fragment && ['', '/'].include?(uri.path)
+        trusted_port = full_host_set? || uri.port == uri.default_port
+        unless secure && trusted_port && uri.host && !uri.userinfo && !uri.query && !uri.fragment && ['', '/'].include?(uri.path)
           raise CallbackError.new(:invalid_configuration, "Bazaruto requires a trusted consumer origin")
         end
         origin.sub(%r{/$}, '')

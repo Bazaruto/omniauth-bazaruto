@@ -178,6 +178,28 @@ class StrategyTest < Minitest::Test
     assert_equal 'http://localhost:3001', local.full_host
   end
 
+  def test_hostname_allowlist_does_not_trust_a_forged_callback_port
+    token = Rack::Protection::AuthenticityToken.token(@session)
+    response = request('/auth/bazaruto', method: 'POST', params: {authenticity_token: token},
+      headers: {'HTTP_HOST' => 'client.example:4443', 'HTTP_X_FORWARDED_HOST' => 'client.example:4443'})
+    assert_equal 401, response[0]
+    assert_nil @auth
+    fixed = strategy(full_host: 'https://consumer.example:4443')
+    assert_equal 'https://consumer.example:4443', fixed.full_host
+  end
+
+  def test_global_faraday_defaults_cannot_disable_oauth_tls_verification
+    previous = Faraday.default_connection_options
+    Faraday.default_connection_options = {ssl: {verify: false, verify_hostname: false, verify_mode: 0}}
+    connection = strategy.client.connection
+    assert_equal true, connection.ssl.verify
+    assert_equal true, connection.ssl.verify_hostname
+    assert_equal OpenSSL::SSL::VERIFY_PEER, connection.ssl.verify_mode
+    assert_equal false, Faraday.default_connection_options.ssl.verify
+  ensure
+    Faraday.default_connection_options = previous
+  end
+
   def test_invalid_profile_cannot_reach_the_application
     [nil, [], {}, PROFILE.merge('id' => nil), PROFILE.merge('id' => ''),
       PROFILE.merge('id' => []), PROFILE.merge('organisation_id' => ' '),

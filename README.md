@@ -42,6 +42,8 @@ application's public hostname or verify a deployed provider registration.
 Authentication fails closed when neither a trusted `full_host` nor an explicit
 `allowed_hosts` list is configured. Fixed origins must use HTTPS, with only
 the explicit local-loopback development exception described below.
+Hostname-only allowlists accept default ports only; use a fixed `full_host`
+when the approved callback origin has a non-default port.
 
 Use a POST sign-in form and `omniauth-rails_csrf_protection` for Rails. Keep
 OmniAuth's request validation and OAuth state checks enabled; never add GET to
