@@ -200,6 +200,30 @@ class StrategyTest < Minitest::Test
     Faraday.default_connection_options = previous
   end
 
+  def test_callback_port_is_checked_even_with_a_stored_redirect_uri
+    stub_success
+    state = start_sign_in.fetch('state')
+    response = request('/auth/bazaruto/callback', params: {state: state, code: 'synthetic-code'},
+      headers: {'HTTP_HOST' => 'client.example:4443'})
+    assert_equal 401, response[0]
+    assert_not_requested @token_request
+  end
+
+  def test_dynamic_trusted_origin_is_validated_again_at_callback
+    stub_success
+    selector = lambda do |env|
+      raise OmniAuth::Error, 'invalid_consumer_origin' unless Rack::Request.new(env).host == 'client.example'
+
+      'https://client.example'
+    end
+    @strategy = strategy(full_host: selector)
+    state = start_sign_in.fetch('state')
+    response = request('/auth/bazaruto/callback', params: {state: state, code: 'synthetic-code'},
+      headers: {'HTTP_HOST' => 'untrusted.example'})
+    assert_equal 401, response[0]
+    assert_not_requested @token_request
+  end
+
   def test_invalid_profile_cannot_reach_the_application
     [nil, [], {}, PROFILE.merge('id' => nil), PROFILE.merge('id' => ''),
       PROFILE.merge('id' => []), PROFILE.merge('organisation_id' => ' '),

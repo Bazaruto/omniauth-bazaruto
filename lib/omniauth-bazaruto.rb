@@ -69,7 +69,13 @@ module OmniAuth
       protected
 
       def allowed_host?
-        (full_host_set? || !OmniAuth.config.allowed_hosts.nil?) && super
+        return false unless full_host_set? || !OmniAuth.config.allowed_hosts.nil?
+        return false unless super
+
+        # Validate the effective origin in both phases, even when the token
+        # exchange reuses a redirect URI stored by the request phase.
+        full_host
+        true
       end
 
       private
