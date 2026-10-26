@@ -3,23 +3,90 @@ Bazaruto OAuth2 Strategy for OmniAuth
 
 ## Installation
 
-Add this line to your application's Gemfile:
+Use the canonical GitHub repository and a reviewed, full commit ID in the
+application's Gemfile. Commit its matching `Gemfile.lock`:
 
 ```ruby
-gem 'omniauth-bazaruto'
+gem 'omniauth-bazaruto', github: 'Bazaruto/omniauth-bazaruto', ref: '<reviewed-full-commit-id>'
 ```
 
-And then execute:
+Resolve updates with `bundle update omniauth-bazaruto` after changing the ref.
+Review the source diff and transitive lock changes, run the application's SSO
+and authorisation tests, and publish the change for review. A SHA prevents a
+branch or tag from silently moving; it does not prove the source is trustworthy
+or free of vulnerabilities. Never use an unreviewed fork or pull-request ref.
+HTTPS and GitHub SSH are supported; never put credentials in the source URL.
+Registry gem checksums can be added with `bundle lock --add-checksums`; Bundler
+does not provide registry checksums for Git sources. Validate provenance and
+the reviewed commit separately. Build applications with Bundler deployment or
+frozen mode so builds cannot silently re-resolve their locks.
 
-    $ bundle
+This gem's development lock is separate from each consuming application's
+lock. Its Dependabot configuration proposes weekly gem and action updates;
+consumer maintainers must also review updates to this Git ref and upstream
+security fixes. Re-run compatibility tests before accepting either update.
 
 ## Usage
 
-TODO: Write usage instructions here
+```ruby
+config.omniauth :bazaruto, ENV.fetch('BAZARUTO_APP_ID'), ENV.fetch('BAZARUTO_APP_SECRET'),
+  full_host: 'https://consumer.example',
+  client_options: { site: 'https://identity.example' }
+```
+
+Set `full_host` to the consumer's trusted public origin, independent of request
+headers. Alternatively configure `OmniAuth.config.allowed_hosts` with exact
+trusted consumer hosts. Register the exact HTTPS callback URI with the provider
+and preserve trusted proxy/host validation. The library cannot infer an
+application's public hostname or verify a deployed provider registration.
+
+Use a POST sign-in form and `omniauth-rails_csrf_protection` for Rails. Keep
+OmniAuth's request validation and OAuth state checks enabled; never add GET to
+`allowed_request_methods` or set `provider_ignores_state`. PKCE with S256 is on
+by default, including for confidential clients. The provider must support it.
+Authorise and token exchange use the same stored callback URI. OAuth2 2.1+
+rejects cross-origin redirects; do not opt back into following them. The
+strategy rejects cross-origin endpoint configuration and disabled TLS
+verification. HTTP is accepted only for literal loopback hosts with explicit
+`allow_insecure_localhost: true` for local development.
+
+`/api/me` must return a JSON object with nonblank string `id`, `email`,
+`organisation_id` and `role`. IDs are the provider's opaque stable strings.
+Optional names and telephone fields retain their existing mapping. Consumers
+must authorise permitted roles and organisations themselves; a successful OAuth
+exchange alone does not grant application access. This is OAuth identity from a
+configured provider, not OIDC ID-token or issuer-claim validation. Scope is left
+to the consumer/provider contract; review provider defaults before rollout.
+
+Use encrypted, HttpOnly, Secure session cookies and an appropriate SameSite
+policy. SameSite=Lax normally permits the top-level GET callback; cross-site
+POST callbacks need a separately reviewed cookie policy. Keep the state and
+PKCE verifier in the session and let the upstream strategy consume them. Do not
+store the entire auth hash, access tokens or client secrets in session cookies,
+logs or error reports. Authenticate the resulting user through the application's
+session framework and preserve its session-renewal behaviour.
+
+Version 0.2 requires OmniAuth 2.3.1+, omniauth-oauth2 1.10+ and OAuth2 2.1+.
+This raises the previous dependency floors, adds PKCE and rejects incomplete
+identity responses and insecure transport configuration. Test each consumer's
+role/account-linking and callback behaviour before adopting its new Git ref.
+Existing consumer locks do not change merely because this repository changes.
 
 ## Development
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+Install the development bundle, then run:
+
+```sh
+bundle exec ruby -Ilib test/strategy_test.rb
+```
+
+All HTTP is stubbed and real network connections are disabled by the tests.
+The CI matrix resolves against Rack 2.2 and 3.2 on Ruby 3.4 and 4.0. To exercise
+a Rack series locally, set `RACK_VERSION='~> 2.2'` (or `~> 3.2`), run
+`bundle lock --update`, install and run the tests. Restore the normal lock
+afterwards. The lock records the normal development bundle, not every supported
+Ruby/Rack combination. Build a package with `gem build omniauth-bazaruto.gemspec`;
+publishing packages or tags is a separate maintainer action.
 
 ## License
 

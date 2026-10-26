@@ -1,0 +1,30 @@
+name: Strategy tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ['3.4', '4.0']
+        rack: ['~> 2.2', '~> 3.2']
+    env:
+      RACK_VERSION: ${{ matrix.rack }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler: '4.0.23'
+      - run: bundle lock --update
+      - run: bundle install
+      - run: bundle exec ruby -Ilib test/strategy_test.rb
