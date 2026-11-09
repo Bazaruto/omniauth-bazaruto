@@ -17,17 +17,33 @@ jobs:
         ruby: ['3.4', '4.0']
         rack: ['~> 2.2', '~> 3.2']
         faraday: ['2.14.3', '~> 2.14']
+        include:
+          # Match the Gemfile defaults to verify the committed lock unchanged.
+          - ruby: '3.4'
+            rack: '>= 2.2.8'
+            faraday: '>= 2.14.3'
+            locked: true
+          - ruby: '4.0'
+            rack: '>= 2.2.8'
+            faraday: '>= 2.14.3'
+            locked: true
     env:
       RACK_VERSION: ${{ matrix.rack }}
       FARADAY_VERSION: ${{ matrix.faraday }}
+      BUNDLE_FROZEN: ${{ matrix.locked || false }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           ruby-version: ${{ matrix.ruby }}
-          bundler: '4.0.23'
-      - run: bundle lock --update
+          bundler: '4.0.24'
+      - if: ${{ !matrix.locked }}
+        run: bundle lock --update
       - run: bundle install
       - run: bundle exec ruby -Ilib test/strategy_test.rb
+      - if: ${{ matrix.locked }}
+        run: |
+          gem build omniauth-bazaruto.gemspec
+          git diff --exit-code -- Gemfile.lock
