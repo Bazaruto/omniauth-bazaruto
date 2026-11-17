@@ -28,6 +28,7 @@ class StrategyTest < Minitest::Test
     @session = {}
     @app = lambda do |env|
       @auth = env['omniauth.auth']
+      @callback_origin = env['omniauth.origin']
       [200, {'content-type' => 'text/plain'}, ['application']]
     end
     @strategy = strategy
@@ -48,11 +49,12 @@ class StrategyTest < Minitest::Test
     @strategy.call(env.merge('rack.session' => session).merge(headers))
   end
 
-  def start_sign_in
+  def start_sign_in(params: {}, headers: {})
     token = Rack::Protection::AuthenticityToken.token(@session)
-    status, headers, = request('/auth/bazaruto', method: 'POST', params: {authenticity_token: token})
+    status, response_headers, = request('/auth/bazaruto', method: 'POST',
+      params: params.merge(authenticity_token: token), headers: headers)
     assert_equal 302, status
-    URI.decode_www_form(URI(headers['location']).query).to_h
+    URI.decode_www_form(URI(response_headers['location']).query).to_h
   end
 
   def callback(state, **params)
@@ -139,6 +141,50 @@ class StrategyTest < Minitest::Test
     assert_equal 200, callback(first['state'])[0]
     assert_equal 200, callback(second['state'])[0]
     assert_requested @token_request, times: 2
+  end
+
+  def test_an_abandoned_sign_in_does_not_supply_the_next_sign_ins_return_origin
+    stub_success
+    abandoned = start_sign_in(params: {origin: '/synthetic-return'})
+    current = start_sign_in
+
+    assert_equal 200, callback(current.fetch('state'))[0]
+    assert_equal 'synthetic-user', @auth.uid
+    assert_nil @callback_origin
+
+    assert_equal 200, callback(abandoned.fetch('state'))[0]
+    assert_equal '/synthetic-return', @callback_origin
+    assert_requested @token_request, times: 2
+  end
+
+  def test_evicted_state_never_authenticates_and_retained_sign_ins_keep_their_origins
+    stub_success
+    sign_ins = 4.times.map { |index| start_sign_in(params: {origin: "/synthetic-return/#{index}"}) }
+
+    assert_equal 'csrf_detected', callback(sign_ins.first.fetch('state'))[2].join
+    assert_nil @auth
+    assert_not_requested @token_request
+    assert_not_requested @profile_request
+
+    [3, 1, 2].each do |index|
+      assert_equal 200, callback(sign_ins[index].fetch('state'))[0]
+      assert_equal 'synthetic-user', @auth.uid
+      assert_equal "/synthetic-return/#{index}", @callback_origin
+    end
+    assert_requested @token_request, times: 3
+    assert_requested @profile_request, times: 3
+  end
+
+  def test_invalid_return_origins_do_not_reach_the_application_or_fall_back_to_referer
+    stub_success
+    ['javascript:synthetic', 'data:synthetic', 'vbscript:synthetic', ['synthetic']].each do |origin|
+      sign_in = start_sign_in(params: {origin: origin},
+        headers: {'HTTP_REFERER' => 'https://client.example/synthetic-fallback'})
+      assert_equal 200, callback(sign_in.fetch('state'))[0]
+      assert_equal 'synthetic-user', @auth.uid
+      assert_nil @callback_origin
+    end
+    assert_requested @token_request, times: 4
   end
 
   def test_forged_callback_host_is_rejected_before_network_access

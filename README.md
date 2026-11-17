@@ -71,7 +71,7 @@ store the entire auth hash, access tokens or client secrets in session cookies,
 logs or error reports. Authenticate the resulting user through the application's
 session framework and preserve its session-renewal behaviour.
 
-Version 0.2 requires Ruby 3.0+, OmniAuth 2.3.1+, omniauth-oauth2 1.10+,
+The current source requires Ruby 3.0+, OmniAuth 2.4.1+, omniauth-oauth2 1.10.1+,
 OAuth2 2.1+ and Faraday >= 2.14.3, < 3. The Faraday floor supplies the TLS
 hostname-verification API and includes upstream security fixes; the Ruby floor
 matches that Faraday release.
@@ -79,6 +79,14 @@ This raises the previous dependency floors, adds PKCE and rejects incomplete
 identity responses and insecure transport configuration. Test each consumer's
 role/account-linking and callback behaviour before adopting its new Git ref.
 Existing consumer locks do not change merely because this repository changes.
+
+The patched OmniAuth dependencies keep at most three sign-ins in progress.
+Starting another can evict the oldest; its callback must restart sign-in.
+Each retained state keeps its own return origin and PKCE transaction. A new
+sign-in without an origin does not inherit an abandoned sign-in's origin.
+Script-scheme and non-string return origins are discarded without falling back
+to the referer. Applications should not rely on those older behaviours.
+These return origins are separate from the trusted callback `full_host` above.
 
 ## Development
 
